@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo Leveling: Shadow Monarch System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #0b0e14; color: #e6edf3; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 450px; }
+        header { text-align: center; margin-bottom: 20px; }
+        .title { font-size: 24px; letter-spacing: 3px; margin: 0; color: #fff; text-shadow: 0 0 10px #00c8ff; }
+        .subtitle { color: #00c8ff; font-size: 11px; margin: 5px 0; font-weight: bold; text-transform: uppercase; }
+
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        
+        /* Profile */
+        .profile-section { display: flex; align-items: center; gap: 15px; }
+        .avatar { width: 60px; height: 60px; background: radial-gradient(circle, #7000ff 0%, #000 100%); border-radius: 50%; box-shadow: 0 0 15px #7000ff; border: 2px solid #00c8ff; }
+        .name-input { background: none; border: none; color: #fff; font-size: 18px; font-weight: bold; border-bottom: 1px dashed #00c8ff; width: 100%; }
+        .rank-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-top: 5px; border: 1px solid #00c8ff; color: #00c8ff; }
+
+        /* Stats Radar */
+        .chart-container { height: 180px; display: flex; justify-content: center; }
+
+        /* Shadows Grid */
+        .shadow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+        .shadow-slot { background: #0b0e14; border: 1px dashed #30363d; border-radius: 8px; padding: 10px; text-align: center; font-size: 10px; color: #444; }
+        .shadow-active { border: 1px solid #7000ff; color: #bc8aff; text-shadow: 0 0 5px #7000ff; box-shadow: inset 0 0 10px #7000ff11; }
+
+        /* Quests */
+        .stat-label { font-size: 11px; color: #8b949e; margin: 10px 0 5px 0; font-weight: bold; text-transform: uppercase; }
+        .progress-bg { background: #30363d; height: 6px; border-radius: 10px; margin: 8px 0; overflow: hidden; }
+        .progress-fill { background: #00c8ff; height: 100%; width: 0%; transition: 0.5s; box-shadow: 0 0 8px #00c8ff; }
+        .btn { background: none; border: 1px solid #00c8ff; color: #00c8ff; padding: 8px; border-radius: 4px; font-size: 10px; cursor: pointer; width: 100%; margin-top: 5px; }
+        .btn:active { background: #00c8ff; color: #000; }
+
+        .log { font-size: 11px; color: #8b949e; height: 80px; overflow-y: auto; }
+        .log-entry { border-left: 2px solid #7000ff; padding-left: 8px; margin-bottom: 4px; }
+        .reset-btn { width: 100%; background: none; border: 1px solid #ff4d4d; color: #ff4d4d; padding: 10px; border-radius: 8px; font-size: 11px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1 class="title">SOLO LEVELING</h1>
+        <p class="subtitle">Shadow Monarch System</p>
+    </header>
+
+    <div class="card profile-section">
+        <div class="avatar"></div>
+        <div style="flex: 1;">
+            <input type="text" id="userName" class="name-input" value="SUNG JIN-WOO" onchange="saveAll()">
+            <div id="rankDisp" class="rank-badge">RANK: E</div>
+            <div class="stat-label" style="margin:0">LEVEL: <span id="lvl" style="color:#00c8ff">1</span></div>
+        </div>
+    </div>
+
+    <div class="stat-label">Aura Statistics</div>
+    <div class="card"><div class="chart-container"><canvas id="auraChart"></canvas></div></div>
+
+    <div class="stat-label">Shadow Army (Unlocked at Lv. 3, 5, 8)</div>
+    <div class="card">
+        <div class="shadow-grid" id="shadowGrid">
+            <div class="shadow-slot" id="s1">IGRIS</div>
+            <div class="shadow-slot" id="s2">TANK</div>
+            <div class="shadow-slot" id="s3">IRON</div>
+            <div class="shadow-slot" id="s4">TUSK</div>
+            <div class="shadow-slot" id="s5">BERU</div>
+            <div class="shadow-slot" id="s6">BELLION</div>
+        </div>
+    </div>
+
+    <div class="stat-label">Daily Missions</div>
+    <div class="card">
+        <div style="margin-bottom:15px">
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Study (Intelligence)</span><span id="studyXP">0</span></div>
+            <div class="progress-bg"><div id="study-bar" class="progress-fill"></div></div>
+            <button class="btn" onclick="gainXP('study')">ARISE</button>
+        </div>
+        <div style="margin-bottom:15px">
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Lecture (Sense)</span><span id="lectureXP">0</span></div>
+            <div class="progress-bg"><div id="lecture-bar" class="progress-fill"></div></div>
+            <button class="btn" onclick="gainXP('lecture')">ARISE</button>
+        </div>
+        <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Gym (Strength)</span><span id="gymXP">0</span></div>
+            <div class="progress-bg"><div id="gym-bar" class="progress-fill"></div></div>
+            <button class="btn" onclick="gainXP('gym')">ARISE</button>
+        </div>
+    </div>
+
+    <div class="stat-label">System Log</div>
+    <div class="card log" id="logBox"></div>
+
+    <button class="reset-btn" onclick="resetSystem()">SYSTEM RESET</button>
+</div>
+
+<script>
+    let state = {
+        name: "SUNG JIN-WOO",
+        lvl: 1,
+        study: 10,
+        lecture: 10,
+        gym: 10,
+        logs: ["System: Dark magic detected in user..."]
+    };
+
+    let myChart;
+
+    window.onload = function() {
+        const saved = localStorage.getItem('soloShadowData');
+        if (saved) state = JSON.parse(saved);
+        document.getElementById('userName').value = state.name;
+        initChart();
+        updateUI();
+    };
+
+    function initChart() {
+        const ctx = document.getElementById('auraChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Int', 'Sense', 'Str'],
+                datasets: [{
+                    data: [state.study, state.lecture, state.gym],
+                    backgroundColor: 'rgba(112, 0, 255, 0.2)',
+                    borderColor: '#7000ff',
+                    pointBackgroundColor: '#00c8ff'
+                }]
+            },
+            options: {
+                scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#30363d' }, angleLines: { color: '#30363d' } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function gainXP(type) {
+        state[type] = Math.min(100, state[type] + 5);
+        addLog(`+5 Proficiency gained.`);
+        calculateLevel();
+        updateUI();
+        saveAll();
+    }
+
+    function calculateLevel() {
+        let avg = (state.study + state.lecture + state.gym) / 3;
+        let oldLvl = state.lvl;
+        state.lvl = Math.floor(avg / 10) + 1;
+        
+        if(state.lvl > oldLvl) addLog(`[LEVEL UP] Level is now ${state.lvl}`);
+        
+        let rank = "E";
+        if(state.lvl > 2) rank = "D";
+        if(state.lvl > 4) rank = "C";
+        if(state.lvl > 6) rank = "B";
+        if(state.lvl > 8) rank = "A";
+        if(state.lvl >= 10) rank = "S";
+        document.getElementById('rankDisp').innerText = "RANK: " + rank;
+    }
+
+    function addLog(text) {
+        state.logs.unshift(text);
+        if(state.logs.length > 5) state.logs.pop();
+    }
+
+    function updateUI() {
+        document.getElementById('lvl').innerText = state.lvl;
+        document.getElementById('study-bar').style.width = state.study + "%";
+        document.getElementById('lecture-bar').style.width = state.lecture + "%";
+        document.getElementById('gym-bar').style.width = state.gym + "%";
+        
+        document.getElementById('studyXP').innerText = state.study;
+        document.getElementById('lectureXP').innerText = state.lecture;
+        document.getElementById('gymXP').innerText = state.gym;
+
+        // Shadow Unlocking Logic
+        if(state.lvl >= 2) document.getElementById('s1').classList.add('shadow-active');
+        if(state.lvl >= 3) document.getElementById('s2').classList.add('shadow-active');
+        if(state.lvl >= 5) document.getElementById('s3').classList.add('shadow-active');
+        if(state.lvl >= 7) document.getElementById('s4').classList.add('shadow-active');
+        if(state.lvl >= 9) document.getElementById('s5').classList.add('shadow-active');
+        if(state.lvl >= 10) document.getElementById('s6').classList.add('shadow-active');
+
+        myChart.data.datasets[0].data = [state.study, state.lecture, state.gym];
+        myChart.update();
+        document.getElementById('logBox').innerHTML = state.logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+    }
+
+    function saveAll() {
+        state.name = document.getElementById('userName').value;
+        localStorage.setItem('soloShadowData', JSON.stringify(state));
+    }
+
+    function resetSystem() {
+        if (confirm("Reset the System? All Shadows will return to the void.")) {
+            localStorage.removeItem('soloShadowData');
+            location.reload();
+        }
+    }
+</script>
+
+</body>
+</html>
