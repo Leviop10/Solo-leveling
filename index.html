@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solo Leveling: Shadow Monarch System</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-firestore-compat.js"></script>
+
     <style>
         body { background-color: #0b0e14; color: #e6edf3; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; display: flex; justify-content: center; }
         .app-container { width: 100%; max-width: 450px; }
@@ -28,12 +32,15 @@
         .shadow-slot { background: #0b0e14; border: 1px dashed #30363d; border-radius: 8px; padding: 10px; text-align: center; font-size: 10px; color: #444; }
         .shadow-active { border: 1px solid #7000ff; color: #bc8aff; text-shadow: 0 0 5px #7000ff; box-shadow: inset 0 0 10px #7000ff11; }
 
-        /* Quests */
+        /* Quests & Buttons */
         .stat-label { font-size: 11px; color: #8b949e; margin: 10px 0 5px 0; font-weight: bold; text-transform: uppercase; }
         .progress-bg { background: #30363d; height: 6px; border-radius: 10px; margin: 8px 0; overflow: hidden; }
         .progress-fill { background: #00c8ff; height: 100%; width: 0%; transition: 0.5s; box-shadow: 0 0 8px #00c8ff; }
         .btn { background: none; border: 1px solid #00c8ff; color: #00c8ff; padding: 8px; border-radius: 4px; font-size: 10px; cursor: pointer; width: 100%; margin-top: 5px; }
         .btn:active { background: #00c8ff; color: #000; }
+        
+        .cloud-btn { border-color: #bb86fc; color: #bb86fc; }
+        .sync-btn { border-color: #03dac6; color: #03dac6; }
 
         .log { font-size: 11px; color: #8b949e; height: 80px; overflow-y: auto; }
         .log-entry { border-left: 2px solid #7000ff; padding-left: 8px; margin-bottom: 4px; }
@@ -57,10 +64,16 @@
         </div>
     </div>
 
+    <div class="stat-label">Cloud Synchronization</div>
+    <div class="card" style="display: flex; gap: 10px;">
+        <button class="btn cloud-btn" onclick="saveToCloud()">UPLOAD DATA</button>
+        <button class="btn sync-btn" onclick="loadFromCloud()">DOWNLOAD DATA</button>
+    </div>
+
     <div class="stat-label">Aura Statistics</div>
     <div class="card"><div class="chart-container"><canvas id="auraChart"></canvas></div></div>
 
-    <div class="stat-label">Shadow Army (Unlocked at Lv. 3, 5, 8)</div>
+    <div class="stat-label">Shadow Army</div>
     <div class="card">
         <div class="shadow-grid" id="shadowGrid">
             <div class="shadow-slot" id="s1">IGRIS</div>
@@ -75,17 +88,17 @@
     <div class="stat-label">Daily Missions</div>
     <div class="card">
         <div style="margin-bottom:15px">
-            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Study (Intelligence)</span><span id="studyXP">0</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Study</span><span id="studyXP">0</span></div>
             <div class="progress-bg"><div id="study-bar" class="progress-fill"></div></div>
             <button class="btn" onclick="gainXP('study')">ARISE</button>
         </div>
         <div style="margin-bottom:15px">
-            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Lecture (Sense)</span><span id="lectureXP">0</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Lecture</span><span id="lectureXP">0</span></div>
             <div class="progress-bg"><div id="lecture-bar" class="progress-fill"></div></div>
             <button class="btn" onclick="gainXP('lecture')">ARISE</button>
         </div>
         <div>
-            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Gym (Strength)</span><span id="gymXP">0</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px"><span>Gym</span><span id="gymXP">0</span></div>
             <div class="progress-bg"><div id="gym-bar" class="progress-fill"></div></div>
             <button class="btn" onclick="gainXP('gym')">ARISE</button>
         </div>
@@ -98,6 +111,20 @@
 </div>
 
 <script>
+    // 3. ADDED: Firebase Initialization
+    const firebaseConfig = {
+        apiKey: "AIzaSyDJyDvdMNWOnE4kI403xT2agDttZPTv2bk",
+        authDomain: "solo-leveling-27f8f.firebaseapp.com",
+        projectId: "solo-leveling-27f8f",
+        storageBucket: "solo-leveling-27f8f.firebasestorage.app",
+        messagingSenderId: "467939772946",
+        appId: "1:467939772946:web:ab24167d2dc788892cacb",
+        measurementId: "G-MKGDJ1VQJL"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     let state = {
         name: "SUNG JIN-WOO",
         lvl: 1,
@@ -139,7 +166,7 @@
 
     function gainXP(type) {
         state[type] = Math.min(100, state[type] + 5);
-        addLog(`+5 Proficiency gained.`);
+        addLog(`+5 Proficiency in ${type}.`);
         calculateLevel();
         updateUI();
         saveAll();
@@ -177,12 +204,12 @@
         document.getElementById('gymXP').innerText = state.gym;
 
         // Shadow Unlocking Logic
-        if(state.lvl >= 2) document.getElementById('s1').classList.add('shadow-active');
-        if(state.lvl >= 3) document.getElementById('s2').classList.add('shadow-active');
-        if(state.lvl >= 5) document.getElementById('s3').classList.add('shadow-active');
-        if(state.lvl >= 7) document.getElementById('s4').classList.add('shadow-active');
-        if(state.lvl >= 9) document.getElementById('s5').classList.add('shadow-active');
-        if(state.lvl >= 10) document.getElementById('s6').classList.add('shadow-active');
+        const slots = ["s1", "s2", "s3", "s4", "s5", "s6"];
+        const milestones = [2, 3, 5, 7, 9, 10];
+        slots.forEach((id, index) => {
+            if(state.lvl >= milestones[index]) document.getElementById(id).classList.add('shadow-active');
+            else document.getElementById(id).classList.remove('shadow-active');
+        });
 
         myChart.data.datasets[0].data = [state.study, state.lecture, state.gym];
         myChart.update();
@@ -192,6 +219,39 @@
     function saveAll() {
         state.name = document.getElementById('userName').value;
         localStorage.setItem('soloShadowData', JSON.stringify(state));
+    }
+
+    // 4. ADDED: Cloud Save and Cloud Load
+    async function saveToCloud() {
+        state.name = document.getElementById('userName').value;
+        addLog("System: Uploading to cloud...");
+        updateUI();
+        try {
+            await db.collection("players").doc(state.name).set(state);
+            addLog("System: Upload Successful.");
+        } catch (e) {
+            addLog("System Error: Upload Failed.");
+            console.error(e);
+        }
+    }
+
+    async function loadFromCloud() {
+        const playerName = document.getElementById('userName').value;
+        addLog("System: Syncing with cloud...");
+        updateUI();
+        try {
+            const doc = await db.collection("players").doc(playerName).get();
+            if (doc.exists) {
+                state = doc.data();
+                updateUI();
+                addLog("System: Sync Complete.");
+            } else {
+                addLog("System: No cloud profile found.");
+            }
+        } catch (e) {
+            addLog("System Error: Sync Failed.");
+            console.error(e);
+        }
     }
 
     function resetSystem() {
